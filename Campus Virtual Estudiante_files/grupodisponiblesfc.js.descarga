@@ -1,0 +1,1510 @@
+﻿var arrCursos = [];
+var arrData = [];
+var arrDataTP = [];
+var cr, key;
+var aData = [];
+var aDataDet = [];
+var aDataCnf = [];
+var cmt;
+var mc=0;
+var ccg = false;
+var cra = false;
+
+var aDataPG = [];
+var lstCursoDD = [];
+var mc_pegrado = 0;
+$(document).ready(function() {
+
+    listarCursosMatriculados()
+    fnDivRefresh('divHorario', 2000);
+    $('#cboCG').change(fnCboCG);
+    $('#divmCG').hide();
+    $('#infoCG').hide();
+
+    $("#btnGuardarCG").click(function() {
+        var dma = $("#hdDma").val();
+        var cupAnt = $("#hdCup").val();
+        var cup = ""
+        var m = $('#cboCG').val();
+        var mt = $("#cboCG option:selected").text();
+        var t = $('#txtmCG').val();
+
+        $("input[name=cpGrupo]:checked").each(function(index) {
+            cup = $(this).val();
+        })
+
+        if (cup == "") {
+            fnMensaje("warning", "Debe seleccionar un grupo")
+            return;
+        }
+
+
+        $('.piluku-preloader').removeClass('hidden');
+
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "procesar.aspx",
+            data: { "param0": "cgEFC", "param1": 3, "param2": dma, "param3": cupAnt, "param4": cup, "param6": m, "param7": mt, "param8": t },
+            dataType: "json",
+            success: function(data) {
+                //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                $('.piluku-preloader').addClass('hidden');
+                if (data[0].Resultado == "OK") {
+                    $("#tbodyDetalle").html("");
+                    $("#hdDma").val("");
+                    $("#hdCup").val("");
+                    fnMensaje("success", "Cambio de grupo realizado")
+                    f_Menu('matriculacomplementaria.aspx');
+                    $('#Mensaje').html("");
+                } else if (data[0].Resultado == "C") {
+                    fnMensaje("warning", data[0].Aviso);
+                    $('#Mensaje').html("<div class='alert bg-warning text-white'>" + data[0].infocruce + "</div>");
+                }
+                else {
+                    $('#Mensaje').html("");
+                    if (data[0].Aviso == "") {
+                        fnMensaje("warning", "No se pudo cambiar de grupo");
+                    } else {
+                        fnMensaje("warning", data[0].Aviso);
+
+                    }
+                }
+
+            },
+            error: function(result) {
+                console.log(result);
+                //f_Menu('cambiodegrupo.aspx');
+            }
+        });
+    });
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "application/json; charset=utf-8",
+        url: "procesar.aspx",
+        data: { "param0": "lsCNFMFC" },
+        dataType: "json",
+        async: false,
+        success: function(data) {
+            //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+            aDataCnf = data;
+            cmt = parseInt(aDataCnf[0].codMat);
+            mc = parseInt(aDataCnf[0].mc);
+            ccg = aDataCnf[0].ccg;
+            cra = aDataCnf[0].cra;
+            if (!cra) {
+                $('#btnGuardar').remove();
+            }
+
+        },
+        error: function(result) {
+            // location.reload();
+        }
+    });
+
+    $('#btnGuardar').click(function() {
+        if (cmt == 0)
+            fnConfirmarIns();
+        //fnGuardar();
+
+    });
+
+    // cmt = parseInt($("#txtmat").val());
+
+
+    //cmt = 0;
+    fnResetMar();
+    $('#cboR').change(fnCboRet);
+    $('#cboA').change(fnCboAgr);
+
+    var tabla = "";
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "application/json; charset=utf-8",
+        url: "procesar.aspx",
+        data: { "param0": "lsCMFC" },
+        dataType: "json",
+        async: false,
+        success: function(data) {
+            // console.log(data);
+            aData = data;
+            if (data.length > 0) {
+                for (var i = 0; i < data.length; i++) {
+
+                    if (data[i].vCurM) {
+                        tabla += '<tr role="row" id="' + data[i].codigo_cur + '" style="background-color: rgb(33, 150, 243);font-size:11px; font-weight:bold;">';
+                        arrData[data[i].codigo_cur] = {
+                            cm: parseInt(data[i].cupmat),
+                            ccur: parseInt(data[i].codigo_cur),
+                            cup: parseInt(data[i].cupmat),
+                            vcs: parseInt(data[i].vvec)
+                        }
+                    }
+                    else {
+                        tabla += '<tr role="row" id="' + data[i].codigo_cur + '" style="font-size:11px;">';
+                    }
+
+                    tabla += '<td>' + data[i].nombre_Cur;
+                    if (parseInt(data[i].vvec) > 0)
+                        tabla += '<sub style="color:red;font-weight:bold;" title="Numero de veces desaprobado">' + data[i].vvec + '</sub>';
+                    tabla += '</td>';
+                    tabla += '<td>' + data[i].vCred + '</td>';
+                    tabla += '<td>' + data[i].vCic + '</td>';
+                    if ((parseInt(aDataCnf[0].codMat) > 0) && data[i].chk == true && data.length > 1) {
+
+                        tabla += '<td style="text-align:center;">';
+                        if (cra)
+                            tabla += '<span class="btn-group"> <a href="javascript:void(0)" class="btn btn-danger btn-xs" title="Retiro" style="cursor: pointer;font-size:small;" data-toggle="modal" data-target="#continuemodal" onclick="fnEliminarConfirmar(' + data[i].vdm + ',' + data[i].codigo_cur + ',\'' + data[i].nombre_Cur + '\',\'¿Deseas retirarte de la actividad \'' + ')"><i class="ion-android-cancel"></i></a>';
+                        if (ccg)
+                            tabla += '<a href="javascript:void(0)" class="btn btn-gray btn-xs"   title="Cambio de Grupo" style="cursor: pointer;font-size:small;" onclick="fnCGConfirmar(' + i + ')"><i class="ion-ios-loop-strong"></i></a>';
+
+                        tabla += '</span></td>';
+
+                    } else {
+                        tabla += '<td></td>';
+                    }
+                    tabla += '</tr>';
+
+                }
+                //console.log(tabla);
+
+                $('#tbCursos').html(tabla);
+            }
+
+        },
+        error: function(result) {
+            location.reload();
+        }
+    });
+
+    if (fnNumsel() > 0) {
+        $('#btnGuardar').attr("data-toggle", "modal");
+        $('#btnGuardar').attr("data-target", "#continuemodal");
+        $('#btnGuardar').attr('onclick', 'fnAgr()');
+    } else {
+        $('#btnGuardar').removeAttr("data-toggle");
+        $('#btnGuardar').removeAttr("data-target");
+        $('#btnGuardar').removeAttr('onclick');
+    }
+
+    var oTable = $('#tablagruposdisponibles').DataTable({
+        "bPaginate": false,
+        "bFilter": false,
+        "bLengthChange": false,
+        "bInfo": true,
+
+        "aaSorting": [[2, 'asc']],
+        "aoColumnDefs": [{
+            "bSortable": false,
+            "aTargets": [0, 1, 2]
+}]
+        });
+
+
+
+
+        var nCloneTh = document.createElement('th');
+        var nCloneTd = document.createElement('td');
+        nCloneTd.className = "details-control";
+
+        $('#tablagruposdisponibles thead tr').each(function() {
+            this.insertBefore(nCloneTh, this.childNodes[0]);
+        });
+
+        $('#tablagruposdisponibles tbody tr').each(function() {
+            this.insertBefore(nCloneTd.cloneNode(true), this.childNodes[0]);
+        });
+
+        $('#tablagruposdisponibles tbody td.details-control').on('click', function() {
+
+            var nTr = $(this).parents('tr')[0];
+            var cur = nTr.id;
+            var cadcup = '';
+            var selCurso = fnBuscarData(cur, "selC", "");
+
+
+            if (oTable.fnIsOpen(nTr)) {
+                $(nTr).removeClass('shown');
+                $(nTr).css("font-weight", "");
+                oTable.fnClose(nTr);
+                fnVerificar(cur);
+            }
+            else {
+                $(nTr).addClass('shown');
+                $(nTr).css("font-weight", "Bold");
+
+                var sOut = '';
+                $.ajax({
+                    type: "GET",
+                    contentType: "application/json; charset=utf-8",
+                    url: "detallematriculafc.aspx",
+                    data: { "cur": cur },
+                    dataType: "json",
+                    async: false,
+                    success: function(data) {
+                        //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                        sOut = '<table class="display" cellpadding="1" cellspacing="1" style="width:100%;font-size:11px;border: 1px #2196f3 solid;">';
+                        var c;
+                        var _null;
+                        var chkd = '';
+                        // var mdtpfc = '';
+                        var chng = false;
+                        if (data.length > 0) {
+                            for (var i = 0; i < data.length - 1; i++) {
+                                if (!(data[i].vvec > 0 && data[i].vCic == 1 && data[i].soloPrimerCiclo_cup == 'True')) {
+                                    if (i < (data.length - 1)) {
+
+                                        if (data[i].codigo_cup != data[i + 1].codigo_cup) {
+
+                                            // mdtpfc = '';
+                                            chkd = '';
+                                            chng = false;
+                                            /*
+                                            if (data[i].tipofc == 'P') {
+                                            mdtpfc = 'data-toggle="modal" data-target="#continuemodal"';
+
+                                            }*/
+
+                                            if (parseInt(data[i].vacantes_cup) - parseInt(data[i].nroMatriculados) == 0) {
+                                                _null = "red";
+                                            } else {
+                                                _null = "";
+                                            }
+
+                                            sOut += '<tr style="color:' + _null + '">';
+
+                                            sOut += '<td align="center">';
+
+                                            if (/*parseInt(data[i].estado_cup)*/(parseInt(data[i].vacantes_cup) - parseInt(data[i].nroMatriculados))>0) {
+                                                if (parseInt(data[i].EsCursoMatriculado) > 0
+                                            && parseInt(data[i].cupmat) == parseInt(data[i].codigo_cup)
+                                            ) {
+
+                                                    chkd = 'checked'
+
+                                                    sOut += '<input type="checkbox" id="chk' + data[i].codigo_cup + '" name="chkCurso' + data[i].codigo_cur + '"  ' + chkd + '  onclick="fnSeleccionar(' + data[i].codigo_cup + ',' + data[i].codigo_cur + ',' + data[i].NroVecesDes + ',0)"  tfc="' + data[i].TipotallerFC_pcu + '" style="display:block;" disabled />';
+                                                } else {
+                                                    if (parseInt(data[i].EsCursoMatriculado) > 0) {
+                                                        chng = true;
+                                                        sOut += '<input type="checkbox" id="chk' + data[i].codigo_cup + '" name="chkCurso' + data[i].codigo_cur + '"  onclick="fnSeleccionar(' + data[i].codigo_cup + ',' + data[i].codigo_cur + ',' + data[i].NroVecesDes + ',0)"  tfc="' + data[i].TipotallerFC_pcu + '"  style="display:block;" disabled />';
+                                                    }
+                                                    else
+                                                        sOut += '<input type="checkbox" id="chk' + data[i].codigo_cup + '" name="chkCurso' + data[i].codigo_cur + '"  onclick="fnSeleccionar(' + data[i].codigo_cup + ',' + data[i].codigo_cur + ',' + data[i].NroVecesDes + ',0)"   tfc="' + data[i].TipotallerFC_pcu + '"  style="display:block;"  />';
+                                                }
+                                            } else {
+                                                if (parseInt(data[i].EsCursoMatriculado) > 0) {
+                                                    sOut += '<input type="checkbox" id="chk' + data[i].codigo_cup + '" name="chkCurso' + data[i].codigo_cur + '"  ' + chkd + '  onclick="fnSeleccionar(' + data[i].codigo_cup + ',' + data[i].codigo_cur + ',' + data[i].NroVecesDes + ',0)"  tfc="' + data[i].TipotallerFC_pcu + '"  style="display:block;" disabled />';
+                                                }
+                                            }
+
+
+
+                                            sOut += '</td>';
+
+                                            sOut += '<td>[' + data[i].grupohor_cup + ']</td>';
+                                            if (data[i].TipotallerFC_pcu == 'P') {
+                                                sOut += '<td>[' + data[i].docente + ']<br><ul  id="ul' + cur + '" style="font-size:11px; font-weight:bold;">' + fnListarCursosTPFCMat(data[i].codigo_cur, data[i].codigo_cup) + '</td>';
+
+                                            }
+                                            else
+                                                sOut += '<td>[' + data[i].docente + ']</td>';
+
+
+                                            c = 0;
+                                            sOut += '<td><table cellpadding="1" cellspacing="1" border="0" style="width:100%;font-size:11px;">';
+                                            jQuery.each(data, function(j, hor) {
+                                                if (hor.codigo_cup == data[i].codigo_cup) {
+                                                    sOut += '<tr>';
+                                                    sOut += '<td align="left" width="40%"><input type="hidden" id="txtdia' + hor.codigo_cup + '[' + c + ']" name="txtdia' + hor.codigo_cup + '[' + c + ']" value="' + hor.dia_Lho + '"/><input type="hidden" id="txtfecIni' + hor.codigo_cup + '[' + c + ']" name="txtfecIni' + hor.codigo_cup + '[' + c + ']" value="' + hor.nombre_Hor + '"/><input type="hidden" id="txtfecFin' + hor.codigo_cup + '[' + c + ']" name="txtfecFin' + hor.codigo_cup + '[' + c + ']" value="' + hor.horaFin_Lho + '"/>' + hor.dia_Lho + ' ' + hor.nombre_Hor + ' - ' + hor.horaFin_Lho + '</td>';
+                                                    sOut += '<td align="left" width="60%">' + hor.ambiente + '</td>';
+
+                                                    sOut += '</tr>';
+
+                                                    c++;
+                                                }
+                                            });
+                                            sOut += '</table><input type="hidden" id="txthornum' + data[i].codigo_cup + '" value="' + c + '"/></td>';
+                                            // if (data[i].estado_cup || parseInt(data[i].vacantes_cup) - parseInt(data[i].nromatriculados) > 0)
+                                            if (/*data[i].estado_cup*/(parseInt(data[i].vacantes_cup) - parseInt(data[i].nroMatriculados))>0 )
+                                                sOut += '<td align="center"><b>' + (parseInt(data[i].vacantes_cup) - parseInt(data[i].nroMatriculados)) + '</b><br>Vacantes</td>';
+                                            else
+                                                sOut += '<td>[Cerrado]<i class="ion-alert" title="Grupo Cerrado"></td>';
+                                            sOut += '<input type="hidden" name="txtst' + data[i].codigo_cur + '" value="' + data[i].estado_cup + '"/></tr>';
+                                        }
+                                    }
+                                }
+                            }
+
+                            _null = "";
+                            if (!(data[data.length - 1].vvec > 0 && data[data.length - 1].vCic == 1 && data[data.length - 1].soloPrimerCiclo_cup == "True")) {
+
+                                //console.log(cadcup);
+
+                                if (cadcup.indexOf(data[data.length - 1].codigo_cup) == -1) {
+                                    // alert(data[data.length - 1].codigo_cup + " found");
+                                    chkd = '';
+                                    chng = false;
+
+                                    if (parseInt(data[data.length - 1].vacantes_cup) - parseInt(data[data.length - 1].nroMatriculados) == 0) {
+                                        _null = "red";
+                                    }
+
+                                    sOut += '<tr style="color:' + _null + '">';
+                                    sOut += '<td align="center">';
+                                    if (/*parseInt(data[data.length - 1].estado_cup)*/(parseInt(data[data.length - 1].vacantes_cup) - parseInt(data[data.length - 1].nroMatriculados))>0) {
+                                        if (parseInt(data[data.length - 1].EsCursoMatriculado) > 0
+                                    && parseInt(data[data.length - 1].cupmat) == parseInt(data[data.length - 1].codigo_cup)) {
+                                            chkd = 'checked';
+
+                                            sOut += '<input type="checkbox" id="chk' + data[data.length - 1].codigo_cup + '" name="chkCurso' + data[data.length - 1].codigo_cur + '" ' + chkd + '  onclick="fnSeleccionar(' + data[data.length - 1].codigo_cup + ',' + data[data.length - 1].codigo_cur + ',' + data[data.length - 1].NroVecesDes + ',0)" tfc="' + data[data.length - 1].TipotallerFC_pcu + '" style="display:block;" disabled/>';
+                                        } else {
+                                            if (parseInt(data[data.length - 1].EsCursoMatriculado) > 0) {
+                                                sOut += '<input type="checkbox" id="chk' + data[data.length - 1].codigo_cup + '" name="chkCurso' + data[data.length - 1].codigo_cur + '"  onclick="fnSeleccionar(' + data[data.length - 1].codigo_cup + ',' + data[data.length - 1].codigo_cur + ',' + data[data.length - 1].NroVecesDes + ',0)" tfc="' + data[data.length - 1].TipotallerFC_pcu + '" style="display:block;" disabled />';
+                                                chng = true;
+                                            }
+                                            else
+                                                sOut += '<input type="checkbox" id="chk' + data[data.length - 1].codigo_cup + '" name="chkCurso' + data[data.length - 1].codigo_cur + '"  onclick="fnSeleccionar(' + data[data.length - 1].codigo_cup + ',' + data[data.length - 1].codigo_cur + ',' + data[data.length - 1].NroVecesDes + ',0)" tfc="' + data[data.length - 1].TipotallerFC_pcu + '" style="display:block;" />';
+                                        }
+                                    } else {
+                                        if (parseInt(data[data.length - 1].EsCursoMatriculado) > 0) {
+                                            sOut += '<input type="checkbox" id="chk' + data[data.length - 1].codigo_cup + '" name="chkCurso' + data[data.length - 1].codigo_cur + '"  ' + chkd + '  onclick="fnSeleccionar(' + data[data.length - 1].codigo_cup + ',' + data[data.length - 1].codigo_cur + ',' + data[data.length - 1].NroVecesDes + ',0)" tfc="' + data[data.length - 1].TipotallerFC_pcu + '" style="display:block;" disabled />';
+                                        }
+                                    }
+
+
+                                    sOut += '</td>';
+                                    sOut += '<td>[' + data[data.length - 1].grupohor_cup + ']</td>';
+                                    //sOut += '<td>[' + data[data.length - 1].docente + ']</td>';
+                                    if (data[data.length - 1].TipotallerFC_pcu == 'P')
+                                        sOut += '<td>[' + data[data.length - 1].docente + ']<br><ul  id="ul' + cur + '" style="font-size:11px; font-weight:bold;">' + fnListarCursosTPFCMat(data[data.length - 1].codigo_cur, data[data.length - 1].codigo_cup) + '</td>';
+                                    else
+                                        sOut += '<td>[' + data[data.length - 1].docente + ']</td>';
+
+
+                                    sOut += '<td><table cellpadding="1" cellspacing="1" border="0" style="width:100%;font-size:11px;">';
+                                    c = 0;
+                                    jQuery.each(data, function(j, hor) {
+                                        if (hor.codigo_cup == data[data.length - 1].codigo_cup) {
+                                            sOut += '<tr>';
+                                            sOut += '<td align="left" width="40%"><input type="hidden" id="txtdia' + hor.codigo_cup + '[' + c + ']" name="txtdia' + hor.codigo_cup + '[' + c + ']"value="' + hor.dia_Lho + '"/><input type="hidden" id="txtfecIni' + hor.codigo_cup + '[' + c + ']" name="txtfecIni' + hor.codigo_cup + '[' + c + ']" value="' + hor.nombre_Hor + '"/><input type="hidden" id="txtfecFin' + hor.codigo_cup + '[' + c + ']" name="txtfecFin' + hor.codigo_cup + '[' + c + ']" value="' + hor.horaFin_Lho + '"/>' + hor.dia_Lho + ' ' + hor.nombre_Hor + ' - ' + hor.horaFin_Lho + '</td>';
+                                            sOut += '<td align="left" width="60%">' + hor.ambiente + '</td>';
+
+                                            sOut += '</tr>';
+
+                                            c++;
+                                        }
+                                    });
+                                    sOut += '</table><input type="hidden" id="txthornum' + data[data.length - 1].codigo_cup + '" value="' + c + '"/></td>';
+                                    if (/*data[data.length - 1].estado_cup*/(parseInt(data[data.length - 1].vacantes_cup) - parseInt(data[data.length - 1].nroMatriculados))>0)
+                                        sOut += '<td align="center"><b>' + (parseInt(data[data.length - 1].vacantes_cup) - parseInt(data[data.length - 1].nroMatriculados)) + '</b><br>Vacantes</td>';
+                                    else
+                                        sOut += '<td>[Cerrado]<i class="ion-alert" title="Grupo Cerrado"></i></td>';
+
+                                    sOut += '<input type="hidden" name="txtst' + data[data.length - 1].codigo_cur + '" value="' + data[data.length - 1].estado_cup + '"/></tr>';
+
+                                }
+
+                            }
+                        }
+
+                        sOut += '</table>';
+
+                        oTable.fnOpen(nTr, sOut, 'details' + cur);
+                        $('.details' + cur).val();
+                        fnVerificar(cur);
+                    },
+                    error: function(result) {
+
+                        sOut = '...';
+                        oTable.fnOpen(nTr, sOut, 'details');
+                        //location.reload();
+                    }
+                });
+            }
+
+        });
+
+        if (cmt > 0) {
+
+            //  $('#tablagruposdisponibles  thead  tr th:eq(0)').html('Horario');
+            fnCargaMar('R');
+            fnCargaMar('A');
+
+
+        } else {
+
+            // $('#tablagruposdisponibles  thead  tr th:eq(0)').html('Horario');
+        }
+        var timeoutId = setTimeout(fnHorario, 1000);
+    });
+
+    /**/
+    function listarCursosMatriculados() {
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "procesar.aspx",
+            data: { "param0": "listarCursosMatriculados" },
+            dataType: "json",
+            async: false,
+            success: function(data) {
+                aDataPG = data;
+                mc_pegrado = aDataPG.length;
+                //console.log(aDataPG);
+                //console.log(mc_pegrado);
+            }, error: function(result) {
+                console.log(result);
+            }
+        });
+
+    }
+    function fnHorario() {
+        fnCargaHorario();
+        fnDataHorario();
+    }
+    function fnDataHorario() {
+        CalendarEliminarEvento();
+        for (var idx in arrCursos) {
+            key = arrCursos[idx];
+            var fecha = DevuelveFechaCalendario2(key.dia);
+            cr = cruceHorario(key, fecha);
+            CalendarAgregaEvento(key.ccup, key.nom, fecha + ' ' + key.f1, fecha + ' ' + key.f2, false, cr, key.mod, key.tipMt);
+
+        }
+    }
+    function fnCargaHorario() {
+
+        var rem = parseInt(aDataCnf[0].codMat)
+        //console.log(rem); // Comentado por JCHAPONAN | 25/07/2024
+        //if (rem == 0) return false;
+        var sThisVal;
+        var cm;
+        var cc;
+        var vcs;
+        var vtc;
+        var param1 = "matFC";
+        
+        for (var i = 0; i < aData.length; i++) {
+            sThisVal = (aData[i].chk ? "1" : "0");
+            if (sThisVal == "1" && aData[i].cupmat > 0) {
+                $.ajax({
+                    type: "GET",
+                    contentType: "application/json; charset=utf-8",
+                    url: "detallematricula.aspx",
+                    data: { "cur": aData[i].codigo_cur, "param1": param1 },
+                    dataType: "json",
+                    async: false,
+                    success: function(data) {
+                        //console.log(data);
+                        if (data.length > 0) {
+                            jQuery.each(data, function(j, hor) {
+                                if (hor.codigo_cup == aData[i].cupmat) {
+                                    eventoCursoCargaHorario(aData[i].codigo_cur, aData[i].nombre_Cur, aData[i].codigo_cur, hor.dia_Lho, hor.nombre_Hor, hor.horaFin_Lho, aData[i].selCurso, aData[i].vvec, "A", aData[i].cup_Mat, rem, aData[i].vtc, hor.mod,'FC');
+                                }
+                            });
+                        }
+                        
+                    },
+                    error: function(result) {
+                    }
+                });
+            }
+        }
+        /*si es que existe cursos matriculados AFC*/
+        if (aDataPG.length > 0) {
+            jQuery.each(aDataPG, function(j, hor) {
+                //console.log(hor.cod_Dmat != 0);
+                //if (hor.cod_Dmat != 0) { 
+                eventoCursoCargaHorario(hor.codigo_cur, hor.nombre_cur, hor.codigo_cur, hor.dia_Lho, hor.nombre_Hor, hor.horaFin_Lho, hor.codigo_cup, hor.vecesCurso_dma, "A", hor.codigo_cup, rem, hor.vtc, hor.modAmb, 'RG');
+                // }
+            });
+        }
+    }
+    function eventoCursoCargaHorario(cod, nom, ccur, dia, f1, f2, ccup, vcs, accion, cm, rem, vtc, mod,tipMt) {
+
+        if (accion == "A") {
+
+            arrCursos[dia + f1 + ccup] = {
+                cod: dia + ccup,
+                nom: nom,
+                ccur: ccur,
+                dia: dia,
+                f1: f1,
+                f2: f2,
+                cup: ccup,
+                vcs: parseInt(vcs),
+                cm: cm,
+                rem: rem,
+                mod: mod,
+                tipMt: tipMt
+            };
+
+            arrData[ccup] = {
+                nom: nom,
+                ccur: ccur,
+                cup: ccup,
+                vcs: parseInt(vcs),
+                cm: cm,
+                rem: rem,
+                vtc: vtc,
+                tipMt: tipMt
+            }
+
+            if (parseInt(vcs) == 2) {
+                lstCursoDD[ccup] = {
+                    nom: nom,
+                    ccur: ccur,
+                    cup: ccup,
+                    vcs: parseInt(vcs),
+                    cm: cm,
+                    rem: rem,
+                    vtc: vtc,
+                    tipMt: tipMt
+                }
+            }
+
+
+        }
+        else {
+            delete arrCursos[dia + f1 + ccup];
+            delete arrData[ccup];
+            delete lstCursoDD[ccup];
+        }
+
+
+    }
+    function DevuelveFechaCalendario2(nD) {
+
+        var fecha;
+        var numeroDia = 1
+        var fechaActual = $('#hdFsr').val();
+        var nombreDia = nD;
+        var numeroDiaActual = $('#hdnumdiaact').val();
+        var fechaCalendario;
+        var fechaCalendario2;
+        var dias;
+
+        fechaActual = fechaActual.substr(0, 10);
+
+
+        if (numeroDiaActual == 0)
+            numeroDiaActual = 7;
+
+        switch (nombreDia) {
+            case 'LU':
+                numeroDia = 1;
+                break;
+            case "MA":
+                numeroDia = 2;
+                break;
+            case "MI":
+                numeroDia = 3;
+                break;
+            case "JU":
+                numeroDia = 4;
+                break;
+            case "VI":
+                numeroDia = 5;
+                break;
+            case "SA":
+                numeroDia = 6;
+                break;
+            default:
+                numeroDia = 7;
+
+        }
+        var d1 = fechaActual.split("/");
+        fechaActual = d1[2] + '-' + d1[1] + '-' + d1[0];
+
+        if (numeroDia == numeroDiaActual) {
+            dias = 1;
+
+            fechaCalendario = fnCalcularfechaCalendar(fechaActual, dias);
+
+        }
+        else if (numeroDia < numeroDiaActual) {
+            dias = (numeroDiaActual - numeroDia) * -1;
+            dias = dias + 1;
+
+            fechaCalendario = fnCalcularfechaCalendar(fechaActual, dias);
+        }
+        else {
+            dias = numeroDia - numeroDiaActual;
+            dias = dias + 1;
+            fechaCalendario = fnCalcularfechaCalendar(fechaActual, dias);
+
+        }
+
+        fecha = fechaCalendario;
+
+        return fecha;
+    }
+    function fnCalcularfechaCalendar(f, dias) {
+        var fecha = new Date(f);
+        dias = dias + 1;
+        fecha.setDate(fecha.getDate() + dias);
+        fecha = fecha.toLocaleDateString();
+        var d1 = fecha.split("/");
+        var dateFirst = d1[2].padStart(2, '0') + '-' + d1[1].padStart(2, '0') + '-' + d1[0].padStart(2, '0');
+
+        return dateFirst;
+    }
+    function cruceHorario(key, kfecha) {
+        for (var i in arrCursos) {
+            obj = arrCursos[i];
+
+            if (key.cod != obj.cod) {
+                //var fecha = DevuelveFechaCalendario(obj.dia);
+                var fecha = DevuelveFechaCalendario2(obj.dia);
+
+                if ((kfecha + ' ' + key.f1 > (fecha + ' ' + obj.f1)) && (kfecha + ' ' + key.f1 < (fecha + ' ' + obj.f2))) {
+
+                    return true;
+                }
+                if ((kfecha + ' ' + key.f1 == (fecha + ' ' + obj.f1)) && (kfecha + ' ' + key.f2 == (fecha + ' ' + obj.f2))) {
+
+                    return true;
+                }
+                if ((kfecha + ' ' + key.f1 == (fecha + ' ' + obj.f1))) {
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+    function fnBuscarDataFC(valor, resulado, up) {
+        var r = false;
+        for (var i = 0; i < aData.length; i++) {
+
+            if (aData[i].codigo_cur == valor) {
+                switch (resulado) {
+                    case 'cupm':
+                        r = aData[i].cup_Mat;
+                        break;
+                    case 'cic':
+                        r = aData[i].vCic;
+                        break;
+                    case 'cred':
+                        r = aData[i].vCred;
+                        break;
+                    case 'nel':
+                        r = aData[i].vnel;
+                        break;
+                    case 'elap':
+                        r = aData[i].velap;
+                        break;
+                    case 'elec':
+                        r = aData[i].electivo_cur;
+                        break;
+                    case 'selC':
+                        r = aData[i].selCurso;
+                        break;
+                    case 'vec':
+                        r = aData[i].vvec;
+                        break;
+                    case 'tc':
+                        r = aData[i].vtc;
+                        break;
+                    case 'nomC':
+                        r = aData[i].nombre_Cur;
+                        break;
+                    case 'pc':
+                        r = aData[i].vpc;
+                        break;
+                    case 'sIdi':
+                        r = aData[i].sIdi;
+                        break;
+                    case 'chkup':
+                        aData[i].chk = up;
+                        break;
+                    case 'selCup':
+                        aData[i].selCurso = up;
+                        break;
+                    case 'selMod':
+                        r = aData[i].modalidadestudio;
+                        break;
+                    case 'selModAmb':
+                        r = aData[i].modAmb;
+                        break;
+                    case 'selCr':
+                        r = aData[i].selCurso=up;
+                        break;
+                    default:
+                        r = "";
+                        break;
+                }
+            }
+        }
+        return r;
+    }
+    function eventoCurso(i, ccup, ccur, horCount, accion, cm, rem, vtc, mod, tipMt) {
+        var nomCurso = fnBuscarDataFC(ccur, "nomC", "");
+        var vcs = fnBuscarDataFC(ccur, "vec", "");
+        if (accion == "A") {
+            arrCursos[$("#txtdia" + ccup + "\\[" + i + "\\]").val() + $("#txtfecFin" + ccup + "\\[" + i + "\\]").val() + ccup] = {
+                cod: $("#txtdia" + ccup + "\\[" + i + "\\]").val() + $("#txtfecFin" + ccup + "\\[" + i + "\\]").val() + ccup,
+                nom: nomCurso,
+                ccur: ccur,
+                dia: $("#txtdia" + ccup + "\\[" + i + "\\]").val(),
+                f1: $("#txtfecIni" + ccup + "\\[" + i + "\\]").val(),
+                f2: $("#txtfecFin" + ccup + "\\[" + i + "\\]").val(),
+                cup: ccup,
+                vcs: vcs,
+                cm: cm,
+                rem: rem,
+                mod: mod,
+                tipMt: tipMt
+            };
+
+            arrData[ccup] = {
+                nom: nomCurso,
+                ccur: ccur,
+                cup: ccup,
+                vcs: parseInt(vcs),
+                cm: cm,
+                rem: rem,
+                vtc: vtc,
+                tipMt: tipMt
+            }
+            if (parseInt(vcs) == 2) {
+                lstCursoDD[ccup] = {
+                    nom: nomCurso,
+                    ccur: ccur,
+                    cup: ccup,
+                    vcs: parseInt(vcs),
+                    cm: cm,
+                    rem: rem,
+                    vtc: vtc,
+                    tipMt: tipMt
+                }
+            }
+
+        }
+        else {
+            delete arrCursos[$("#txtdia" + ccup + "\\[" + i + "\\]").val() + $("#txtfecFin" + ccup + "\\[" + i + "\\]").val() + ccup];
+            delete arrData[ccup];
+            delete lstCursoDD[ccup];
+        }
+
+
+    }
+/**/
+function fnConfirmarIns() {
+        if (cmt == 0) {
+            fnMensajeConfirmarEliminar('top', '¿Estas seguro de realizar la inscripci&oacute;n en la actividad seleccionada? <br><br> [<input type="checkbox" class="mark-complete" id="toggle-switcha" name="toggle-switcha" onclick="fnAceptarTerminos()"><label for="toggle-switcha"><span></span></label>]He leído<font style="font-weight:bold;color:Black;text-decoration: underline;"> <a href="pdf/R5221003_Directiva_Actividades_Formacion_Complementaria_V5.pdf" target="_blank">DIRECTIVA PARA EL REGISTRO Y DESARROLLO DE ACTIVIDADES DEL ÁREA COMPLEMENTARIA (Clic aquí)</a></font>', 'fnGuardar', 0, 0);
+            $('.noty_buttons').hide();
+        }
+        else
+            fnMensajeConfirmarEliminar('top', '¿Estas seguro de realizar la inscripci&oacute;n en la actividad seleccionada?', 'fnGuardar', 0, 0);        
+        
+    }
+    
+    function fnHorarioCup(cod, dataCur) {
+        var td = '<ul>';
+
+        for (var i = 0; i < dataCur.length; i++) {
+            if (dataCur[i].codigo_cup == cod)
+                td += '<li>' + dataCur[i].dia_lho + ' ' + dataCur[i].nombre_Hor + ' a ' + dataCur[i].horaFin_Lho + ' (' + dataCur[i].tipoHoraCur_Lho + ')' + '<br>Ambiente: ' + dataCur[i].ambiente + '</li>';
+        }
+        td += '</ul>';
+
+        return td;
+    }
+
+    function fnResetMar() {
+
+        $('#divmA').hide();
+        $('#divmR').hide();
+    }
+    
+    function fnCboRet() {
+        var sThisVal = $("#cboR option:selected").text();
+        if (sThisVal == "OTROS") {
+            $('#divmR').show();
+            $('#txtmR').focus();
+        } else {
+            $('#divmR').hide();
+            $('#txtmR').val('');
+        }
+        $('#divmA').hide();
+    }
+
+    function fnCboAgr() {
+        var sThisVal = $("#cboA option:selected").text();
+        if (sThisVal == "OTROS") {
+            $('#divmA').show();
+            $('#txtmA').focus();
+        } else {
+            $('#divmA').hide();
+            $('#txtmA').val('');
+        }
+        $('#divmR').hide();
+    }
+
+
+    function fnCargaMar(o) {
+
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "procesar.aspx",
+            data: { "param0": "lsMar", "param2": o },
+            dataType: "json",
+            async: false,
+            success: function(data) {
+
+                var i = 0;
+                var t = '';
+                if (data.length > 0) {
+                    t += '<option value="0">SELECCIONE AQUI</option>';
+                    for (i = 0; i < data.length; i++) {
+                        t += '<option value="' + data[i].c + '">' + data[i].desc + '</option>';
+                    }
+                }
+                if (o == 'R') { $('#cboR').html(t); } else { $('#cboA').html(t); }
+            },
+            error: function(result) {
+            }
+        });
+
+    }
+
+    function fnCGConfirmar(i) {
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "procesar.aspx",
+            data: { "param0": "lsMar", "param2": "C" },
+            dataType: "json",
+            async: false,
+            success: function(data) {
+
+                var i = 0;
+                var t = '';
+                if (data.length > 0) {
+                    t += '<option value="0">SELECCIONE AQUI</option>';
+                    for (var i = 0; i < data.length; i++) {
+                        t += '<option value="' + data[i].c + '">' + data[i].desc + '</option>';
+                    }
+                }
+                $('#cboCG').html(t);
+            },
+            error: function(result) {
+            }
+        });
+
+        fnGrupos(i);
+    }
+
+    function fnGrupos(i) {
+        $('#infoCG').show();
+        var cup = aData[i].cupmat;
+        var art = aData[i].nomCurso;
+        var cdm = aData[i].vdm;
+
+        //$("#" + cup).hasClass('selected')
+        $("#thCurso").html("Actividad : " + art);
+
+        var diaCup = ""
+        $("#hdCup").val(cup);
+        $("#hdDma").val(cdm);
+        $('.piluku-preloader').removeClass('hidden');
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "detallecambiogrupofc.aspx",
+            data: { "param0": cup },
+            dataType: "json",
+            success: function(data) {
+                //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                var filas = data.length;
+                $('#txtmCG').val('');
+                $('.piluku-preloader').addClass('hidden');
+                sOut = '';
+                for (var i = 0; i < filas; i++) {
+                    if (data[i].codigo_cup != diaCup) {
+                        diaCup = data[i].codigo_cup;
+                        sOut += '<tr>';
+                        sOut += '<td>(' + data[i].grupohor_cup + ') - ' + data[i].docente + '<br/>';
+                        sOut += 'Inicio: ' + data[i].fechainicio_cup + ' Fin: ' + data[i].fechafin_cup + '<br/>'
+                        sOut += '<b>' + (parseInt(data[i].vacantes_cup) - parseInt(data[i].nroMatriculados)) + '</b> vacantes disponibles' + '</td>';
+                        //  sOut += data[i].ambiente + "</td>"
+                        // sOut += '<td>' + data[i].dia_lho + ' ' + data[i].nombre_Hor + ' a ' + data[i].horaFin_Lho + ' (' + data[i].tipoHoraCur_Lho + ')<br/>';
+                    } /* else {
+                                //sOut += data[i].dia_lho + ' ' + data[i].nombre_Hor + ' a ' + data[i].horaFin_Lho + ' (' + data[i].tipoHoraCur_Lho + ')<br/>';
+                                sOut += data[i].dia_lho + ' ' + data[i].nombre_Hor + ' a ' + data[i].horaFin_Lho + ' (' + data[i].tipoHoraCur_Lho + ')<br/></td>';
+                            }*/
+
+                    if (i == (filas - 1)) {
+                        sOut += '<td>' + fnHorarioCup(data[i].codigo_cup, data) + '</td>';
+                        sOut += '<td align="center" style="background-color: gray"><input type="radio" name="cpGrupo" id="cpGrupo' + i + '" value="' + data[i].codigo_cup + '"  ><label for="cpGrupo' + i + '"><span></span></label></td>'
+                        sOut += '</tr>';
+                    } else {
+                        if (data[i + 1].codigo_cup != diaCup) {
+                            sOut += '<td>' + fnHorarioCup(data[i].codigo_cup, data) + '</td>';
+                            sOut += '<td align="center" style="background-color: gray"><input type="radio" name="cpGrupo" id="cpGrupo' + i + '" value="' + data[i].codigo_cup + '"  ><label for="cpGrupo' + i + '"><span></span></label></td>'
+                            sOut += '</tr>';
+                        }
+                    }
+
+                }
+
+
+                // console.log(sOut);
+
+                $("#tbodyDetalle").html(sOut);
+            },
+            error: function(result) {
+                sOut = '';
+            }
+        });
+
+    }
+
+
+    function fnCboCG() {
+        var sThisVal = $("#cboCG option:selected").text();
+        if (sThisVal == "OTROS") {
+            $('#divmCG').show();
+            $('#txtmCG').focus();
+        } else {
+            $('#divmCG').hide();
+            $('#txtmCG').val('');
+        }
+
+    } 
+    function fnEliminarConfirmar(cdm, cu, registro, mensaje) {
+        $('#cboA').hide();
+        $('#cboR').show();
+        $('#btnA').hide();
+        $('#btnR').show();
+        aDataR = {
+            cdm: cdm,
+            cu: cu,
+            registro: registro,
+            mensaje: mensaje
+        }
+        fnCboRet();
+    }
+
+    function fnRet() {
+        fnMensajeConfirmarEliminar('top', aDataR.mensaje + '[' + aDataR.registro + ']?', 'fnRetiro', aDataR.cdm, aDataR.cu);
+    }
+
+    function fnAgr() {
+        $('#cboA').show();
+        $('#cboR').hide();
+        $('#btnA').show();
+        $('#btnR').hide();
+        fnCboAgr();
+    }
+     
+
+    function fnRetiro(dm, c) {      
+            var r = parseInt($('#cboR').val());
+            var m = $('#txtmR').val();
+            var t = $("#cboR option:selected").text();
+            $.ajax({
+                type: "GET",
+                contentType: "application/json; charset=utf-8",
+                url: "procesar.aspx",
+                data: { "param0": "retMatFC", "param1": dm, "r": r, "m": m, "t": t },
+                dataType: "json",
+                success: function(data) {
+                    //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                    if (data[0].R == "OK") {
+                        fnMensaje("success", data[0].Mensaje);                        
+                    }
+                    else {
+                        fnMensaje("warning", data[0].Mensaje);
+                    }
+                   // f_Menu('matriculacomplementaria.aspx');
+                    f_Menu('matriculacomplementariaSDE.aspx');
+                },
+                error: function(result) {
+                    console.log(result);
+                }
+            });
+          
+        $('#txtmA').val('');
+        $('#txtmR').val('');
+    }
+
+    function fnSeleccionar(ccup, ccur, vcs, curmat) {
+        //console.log(ccup);
+        var parent = $('#chk' + ccup).attr('name');
+        var tfc = $('#chk' + ccup).attr('tfc');
+       
+        var checked = $('input[id=chk' + ccup + ']').is(':checked');
+
+        var selCurso = fnBuscarDataFC(ccur, "selCr", "");
+        var rem = parseInt(aDataCnf[0].codMatReg);
+        console.log(selCurso);
+        var obj = {};
+        var i = 0;
+        for (var idx in arrData) {
+            if(arrData[idx]['tipMt']=='FC'){
+                key = arrData[idx];
+                obj[i] = key;
+                i++;
+            }
+        }
+                
+
+        if (checked ) {
+            $('input[name=' + parent + ']').removeAttr('checked');
+            $('input[id=chk' + ccup + ']').prop('checked', 'checked');
+
+            $('#' + ccur).css("font-weight", "bold");
+            arrData[ccur] = {
+                cm: curmat,
+                ccur: ccur,
+                cup: ccup,
+                vcs: parseInt(vcs)
+                
+            }
+                
+            console.log(i+ '>='+mc);
+            if (i >= (mc)) {
+                eliminarCurso(ccur, ccup);
+                $('#' + ccur).css("font-weight", "");
+                $('input[id=chk' + ccup + ']').prop('checked', false);
+                delete arrData[ccur];
+                fnMensaje("warning", 'Solo debe seleccionar (' + (mc) + ') actividad(es)');
+                
+                CalendarEliminarEvento();
+                for (var idx in arrCursos) {
+                    key = arrCursos[idx];
+                    var fecha = DevuelveFechaCalendario2(key.dia);
+                    cr = cruceHorario(key, fecha);
+                    CalendarAgregaEvento(ccup, key.nom, fecha + ' ' + key.f1, fecha + ' ' + key.f2, false, cr, key.mod, key.tipMt);
+
+                }
+                
+            } else {
+                if (tfc == 'P') {            
+                    fnListarCursosTPFC(ccur, curmat);
+                    $('#cuptpfc').val(ccup);
+                    $('#curtpfc').val(ccur);
+                }
+
+                //eliminarCurso(ccur,"");
+                var horCount = parseInt($("#txthornum" + ccup).val());
+                var modalidadAmb = fnBuscarData(ccur, "selModAmb", "");
+                var j = 0;
+                for (j = 0; j < horCount; j++) {
+
+                    eventoCurso(j, ccup, ccur, horCount, "A", 0, rem, 1, modalidadAmb, 'FC');
+                }
+                CalendarEliminarEvento();
+                for (var idx in arrCursos) {
+                    key = arrCursos[idx];
+                    //var fecha = DevuelveFechaCalendario(key.dia); //2022-07-15 13:00
+                    var fecha = DevuelveFechaCalendario2(key.dia);
+                    cr = cruceHorario(key, fecha);
+                    CalendarAgregaEvento(ccup, key.nom, fecha + ' ' + key.f1, fecha + ' ' + key.f2, false, cr, key.mod, key.tipMt);
+                }
+                
+            }
+            /**/
+
+
+        } else {
+            i = 0;
+            eliminarCurso(ccur, ccup);
+            $('#tbCursosTPFC').html('');
+            $('#' + ccur).css("font-weight", "");
+            $('input[id=chk' + ccup + ']').prop('checked', false);
+            //delete arrData[ccur];
+            CalendarEliminarEvento();
+            for (var idx in arrCursos) {
+                key = arrCursos[idx];
+                //var fecha = DevuelveFechaCalendario(key.dia); //2022-07-15 13:00
+                var fecha = DevuelveFechaCalendario2(key.dia);
+                cr = cruceHorario(key, fecha);
+                CalendarAgregaEvento(ccup, key.nom, fecha + ' ' + key.f1, fecha + ' ' + key.f2, false, cr, key.mod, key.tipMt);
+
+            }
+            
+        }
+
+
+
+    }
+    function eliminarCurso(ccur, c) {
+        var ccup = fnBuscarDataFC(ccur, "selCr", c);
+        var horCount = parseInt($("#txthornum" + ccup).val());
+        var i;
+        for (i = 0; i < horCount; i++) {
+            delete arrCursos[$("#txtdia" + ccup + "\\[" + i + "\\]").val() + $("#txtfecFin" + ccup + "\\[" + i + "\\]").val() + ccup];
+            delete arrData[ccup];
+            delete lstCursoDD[ccup];
+        }
+    }
+
+    function fnListarCursosTPFCMat(cur, curmat) {
+        var t = '';
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "processventa.aspx",
+            data: { "param0": "lstCurTPFCmat" },
+            dataType: "json",
+            async: false,
+            success: function(data) {
+                console.log(curmat)
+                //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+
+                    
+                var i = 0;
+                var l = data.length;
+
+                for (i = 0; i < l; i++) {
+                    if (data[i].cup == curmat) {
+                        t += '<li>';
+                        t += data[i].curso;
+                        t += '</li>';
+                    }
+                }
+
+
+
+
+            },
+            error: function(result) {
+                console.log(result);
+            }
+        });
+
+        return t;
+
+    }
+
+
+    function fnListarCursosTPFC(cur, curmat) {
+        $('#tbCursosTPFC').html();
+        $('#mdCursosTPFC').modal('show');
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "processventa.aspx",
+            data: { "param0": "lstCurTPFC" },
+            dataType: "json",
+            async:false,
+            success: function(data) {
+                //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+
+                var t = '';
+                var i = 0;
+                var l = data.length;
+
+                for (i = 0; i < l; i++) {
+                    t += '<tr id="tr' + data[i].cod + '">';
+                    t += '<td style="width:5%;text-align:center;">';
+                    if (( data[i].vacantes - data[i].matriculados)>0)
+                    t += '<center><input type="checkbox" id="chkfctp' + data[i].cod + '" name="chkfctp' + data[i].cod + '" style="display:block;"  onclick="fnSeleccionarTP(' + data[i].cod + ','+cur+',\''+data[i].curso+'\')"></center>';
+                    
+                    t += '</td>';
+                    t += '<td style="width:30%">';
+                    t += data[i].curso;
+                    t += '</td>';
+                    t += '<td style="width:15%;text-align:center;">';
+                    t += data[i].cred;
+                    t += '</td>';
+                    t += '<td style="width:10%;text-align:center;">';
+                    t += data[i].ciclo;
+                    t += '</td>';
+                    t += '<td style="width:10%;text-align:center;">';
+                    t += data[i].nota;
+                    t += '</td>';
+                    t += '<td style="width:10%;text-align:center;">';
+                    t += data[i].vacantes - data[i].matriculados;
+                    t += '</td>';
+                    t += '</tr>';
+
+                }
+
+                $('#tbCursosTPFC').html(t);
+
+               
+                var obj = {};
+                var j = 0;
+                for (var idx in arrDataTP) {
+                    key = arrDataTP[idx];
+                    obj[j] = key;
+
+                    console.log("key: " + key);
+                    console.log("obj[" + j + "]: " + obj[j]);
+                    $('input[id=chkfctp' + obj[j].cod + ']').prop('checked', 'checked');
+
+                    $('#tr' + obj[j].cod).css("font-weight", "bold");
+                    j++;
+                }
+
+
+            },
+            error: function(result) {
+                console.log(result);
+            }
+        });
+        
+    }
+
+    function fnSeleccionarTP(cod,cur,nom) {
+
+        var mtp = 1;
+        var checked = $('input[id=chkfctp' + cod + ']').is(':checked');
+
+        var obj = {};
+        var i = 0;
+        for (var idx in arrDataTP) {
+            key = arrDataTP[idx];
+            obj[i] = key;
+            i++;
+        }
+
+      
+
+        if (checked) {
+            $('input[id=chkfctp' + cod + ']').prop('checked', 'checked');
+
+            $('#tr' + cod).css("font-weight", "bold");
+                    arrDataTP[cod] = {
+                    cod: cod,
+                    nom:nom,
+                    cur: cur
+            }
+
+            // console.log(i+ '>='+mc);
+
+            if (i >= mtp) {
+                $('#tr' + cod).css("font-weight", "");
+                $('input[id=chkfctp' + cod + ']').prop('checked', false);
+                delete arrDataTP[cod];
+                fnMensaje("warning", 'Solo debe seleccionar (' + mtp + ') curso(s)');
+            }
+        } else {
+            
+            $('#tr' + cod).css("font-weight", "");
+            $('input[id=chkfctp' + cod + ']').prop('checked', false);
+            delete arrDataTP[cod];
+        }
+
+        fnListarSeleccionTP(cur);
+
+    }
+
+    function fnListarSeleccionTP(cur) {
+        var obj = {};
+        var j = 0;
+        var t = '';
+        for (var idx in arrDataTP) {
+            key = arrDataTP[idx];
+            obj[j] = key;
+
+            t += '<li>';
+            t += obj[j].nom;
+            t += '</li>';
+            j++;
+        }
+
+        $('#ul' + cur).html(t);
+    }
+    function fnVerificar(cur) {
+        var obj = {};
+        var i = 0;
+        for (var idx in arrData) {
+            key = arrData[idx];
+            obj[i] = key;            
+            i++;
+        }
+        if (i<=mc) {
+            jQuery.each(obj, function(j, dato) {
+                if (dato.ccur == cur) {
+                    $('#' + cur).css("font-weight", "bold");
+                    $('input[id=chk' + dato.cup + ']').prop('checked', 'checked');
+                    return dato.cup;
+                }
+            });
+        } else {
+       
+        delete arrData[cur];
+        $('input[name=chkCurso' + cur + ']').removeAttr('checked');
+        fnMensaje("warning", 'Solo debe seleccionar ('+mc+') actividad(es)');
+            
+        }
+    }
+
+
+    function fnNumsel() {
+        var obj = {};
+        var i = 0;
+        for (var idx in arrData) {
+            key = arrData[idx];
+            obj[i] = key;
+            i++;
+        }
+
+        return i;
+    
+    }
+
+    function fnValidar() {
+        
+        var obj = {};
+        var i = 0;
+        for (var idx in arrData) {
+            key = arrData[idx];
+            obj[i] = key;
+            i++;
+        }
+        var n = 0;
+        jQuery.each(obj, function(j, dato) {
+            if (dato.cm ==0) {
+                n++;
+            }
+        });
+        console.log(i + ' ' + mc); 
+        if (i > mc) {
+
+
+            if (n == 0) {
+                fnMensaje("warning", 'Solo debe seleccionar una actividad');
+                //$('#continuemodal').modal('hide');
+                return false;
+            }
+
+        }
+        console.log(i + ' ' + n); 
+        if (n == 0) {
+            fnMensaje("warning", 'Solo debe seleccionar una actividad');
+            //$('#continuemodal').modal('hide');
+            return false;
+        }
+
+
+        return true;
+    }
+
+
+    function fnAceptarTerminos() {
+        var uAg = navigator.userAgent.toLowerCase();
+        var isMobile = !!uAg.match(/android|iphone|ipad|ipod|blackberry|symbianos/i);
+        var d = 'D'
+        if (isMobile)
+            d = 'M'
+
+        $('.piluku-preloader').removeClass('hidden');
+
+        $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            url: "procesar.aspx",
+            data: { "param0": "aTermFC", "d": d },
+            dataType: "json",
+            success: function(data) {
+                //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                $('.piluku-preloader').addClass('hidden');
+
+                if ($("#toggle-switcha").is(':checked'))
+                    $('.noty_buttons').show();  // checked
+                else
+                    $('.noty_buttons').hide(); // unchecked
+
+              
+
+                //                if (data.r) {
+                //                    f_Menu('matricula.aspx');
+                //                }
+                //                fnMensaje(data.alert, data.msj);
+            },
+            error: function(result) {
+                console.log('erro');
+                console.log(result);
+                $('.piluku-preloader').addClass('hidden');
+            }
+        });
+    }
+    
+    function fnGuardar(a,b) {
+        if (fnValidar()) {
+          
+            var m = 0;
+            var o;
+            var t;
+            var st = 0;
+            var obj = {};
+            var objTP = {};
+            var lstCursoD = {};
+            var i = 0;
+
+
+            if (cmt > 0) {
+                m = $('#cboA').val();
+                o = $('#txtmA').val();
+                t = $("#cboA option:selected").text();
+            }
+
+            for (var idx in arrData) {
+                if (arrData[idx]['tipMt'] == 'FC') {
+                    key = arrData[idx];
+                    delete key.nom;
+                    obj[i] = key;
+                    i++;
+                }                
+            }
+            i = 0;
+            for (var idx in arrDataTP) {
+                key = arrDataTP[idx];
+                delete key.nom;
+                objTP[i] = key;
+
+                i++;
+            }
+
+            st = lstCursoD;
+
+            //console.log(st);
+            //console.log(obj);
+            //console.log(objTP);
+            //return false;
+            $.ajax({
+                type: "GET",
+                contentType: "application/json; charset=utf-8",
+                url: "procesar.aspx",
+                data: { "param0": "regMatFC", "param1": obj, "M": m, "O": o, "T": t, "st": st, "param2": objTP },
+                dataType: "json",
+                success: function(data) {
+                    //console.log(data); // Comentado por JCHAPONAN | 25/07/2024
+                    if (data[0].R == "C") {
+                        fnMensaje("warning", "El horario del grupo seleccionado tiene cruce con otra asignatura");
+                        $('#Mensaje').html("<div class='alert bg-warning text-white'>" + data[0].infocruce + "</div>");
+                    }
+                    else if (data[0].R == "OK") {
+
+                        fnMensaje("success", data[0].Mensaje);
+                        f_Menu('matriculacomplementariaSDE.aspx');
+                    }
+                    else {
+                        fnMensaje("warning", data[0].Mensaje);
+                        $('#Mensaje').html("");
+                    }
+                },
+                error: function(result) {
+                    console.log(result);
+                    fnMensaje("warning", "No se pudo realizar la inscripción");
+                }
+            });
+          
+        }
+    }
+
+
+    
+    

@@ -1,0 +1,303 @@
+﻿
+function fnViewFileInc(c, t) {
+
+    window.open("TramiteVirtual/DescargarArchivo.aspx?Id=" + c + "&t=" + t);
+
+}
+
+function uploadFile() {
+    var event = jQuery.Event("preventDefault");
+    $(document).trigger(event);
+
+    var asunto = $("#txtincasunto").val();
+    var msje = $("#txtincmsje").val();
+    var input = $("#flArchivo")[0];
+
+    /*var frm = new FormData();
+    console.log(frm);*/
+
+    var myForm = document.querySelector('frmForo');
+    frm = new FormData(myForm);
+    
+    frm.append('asunto', asunto);
+    frm.append('mensaje', msje);
+    frm.append('archivo', input.files[0]);
+    console.log(frm);
+    
+    //console.log(input.files[0]);
+    /*
+    var form = new FormData();
+    form.append('asunto', asunto);
+    form.append('mensaje', msje);
+    form.append('file', input.files[0]);
+    console.log(input.files[0]);
+    console.log(form);*/    
+    //$('.piluku-preloader').removeClass('hidden');
+    //console.log(input.files[0]);
+    //var form = $.parseJSON($("#frmForo").serializeArray());
+    //form.append('file', input.files[0]);
+   
+    /* 
+   $.ajax({
+        type: "GET",
+        //headers: { "Cache-Control":"no-cache", "Content-Type":"multipart/form-data" },
+        //headers: { 'Cache-Control': 'no-cache' },
+        //  contentType: "application/json; charset=utf-8",
+        url: "procesar.aspx",
+        //data: { "param0": "regAluf", asunto: asunto, msje: msje, file: input.files[0] },
+        data: { },
+        //processData: false,
+        //contentType: false,
+        dataType: "json",
+        success: function(data) {
+            console.log(data);
+            //$('.piluku-preloader').addClass('hidden');
+            fnMensaje(data[0].alert, data[0].msje)
+            if (data[0].r) {
+                $('#mdForoReg').modal('hide');
+                fnIncidentes();
+                $("#PanelInc").focus();
+            }
+        },
+        error: function(result) {
+            console.log(result);
+            // f_Menu("nivelacioncurso.aspx");
+        }
+    });*/
+    event.preventDefault();
+}
+
+function fnIncidentes() {
+       
+        $("#divContentForo").html("<br><br><br>");
+        //if (page.length > 0) {
+        /*  $("#divleft").removeClass("left-bar menu_appear").addClass("left-bar");
+        $("#divleft").css(["overflow", "hidden", "outline", "none"]);
+        $("#divOverlay").removeClass("overlay show").addClass("overlay");
+        $('.piluku-preloader').removeClass('hidden');*/
+        fnDivRefresh('divContentForo',1000);
+        $.post("incidente.aspx", {}, function(data, status) {
+            if (status == 'success') {
+                // $("#divContent").html(data);
+                $("#divContentForo").empty()
+                $("#divContentForo").html(data);
+                $("#PanelInc").focus();
+
+
+            } else {
+                $("#divContentForo").html("");
+            }
+
+        });
+        //}
+    }
+    function fnValidarArchivoIncidente() {
+
+        var rpta = true;
+        //var fileUpload = $('#flArchivo\\[' + i + '\\]');
+        //
+        var file = $('#flArchivo').get(0).files;
+        //var file = document.getElementById('flArchivo').files[0];
+        //      
+        if (file.length === 0) {
+            //console.log("holi")
+            return rpta;
+        }
+        var file = $('#flArchivo').prop("files")[0];
+        var fileUpload = file.name;
+
+        if (fileUpload.length === 0) {
+            return rpta;
+        }
+
+        //var ext = fileUpload.val().split('.').pop();
+        //var ext = file.split('.').pop();
+        var extplit = fileUpload.split('.');
+        var ext = extplit[1];
+
+        var maxFileSize = 512000;
+
+        var vSize = true; //Excede tamaño
+        var vType = true; //No es el tipo
+
+        if (fileUpload == '') {
+            szfile = true;
+
+        }
+        else {
+
+            if (file.size <= maxFileSize) {
+                szfile = true;
+                vSize = false;
+            }
+
+            switch (ext) {
+                case 'jpeg':
+                    vType = false;
+                    break;
+                case 'jpg':
+                    vType = false;
+                    break;
+                case 'pdf':
+                    vType = false;
+                    break;
+                case 'png':
+                    vType = false;
+                    break;
+                case 'gif':
+                    vType = false;
+                    break;
+                case 'docx':
+                    vType = false;
+                    break;
+                case 'doc':
+                    vType = false;
+                    break;
+                case 'xls':
+                    vType = false;
+                    break;
+                case 'xlsx':
+                    vType = false;
+                    break;
+                default:
+                    vType = true;
+            }
+
+            if (vSize) {
+                rpta = false;
+                szfile = false;
+                $('.piluku-preloader').addClass('hidden');
+                document.getElementById('lblMensaje0').innerHTML = 'Error: Solo puede adjuntar 500 KB de tamaño del archivo'
+
+            }
+
+            if (vType) {
+                rpta = false;
+                $('.piluku-preloader').addClass('hidden');
+                document.getElementById('lblMensaje0').innerHTML = 'Adjuntar archivo en formato *.jpg, *.gif, *.png, *.jpeg, *.xlsx, *.docx, *.pdf.';
+            }
+        }
+
+        //console.log(rpta);
+        return rpta;
+
+    }
+
+    function SubirArchivoInc(c) {
+
+        try {
+
+            //console.log("subir archivo");
+            var file = $('#flArchivo').get(0).files;
+
+            var data = new FormData();
+
+            if (file.length > 0) {
+                data.append("UploadedImage", file[0]);
+                //console.log("holaaa")
+          
+            data.append("param0", "UpdFileInc");
+            data.append("param1", c);
+            data.append("param2", c);
+
+            fnMensaje('primary', 'Subiendo Archivo..');
+            $.ajax({
+                type: "POST",
+                url: "ProcesoInc.aspx",
+                data: data,
+                dataType: "json",
+                cache: false,
+                contentType: false,
+                processData: false,
+                success: function(data) {
+                    console.log(data);
+                    fnMensaje('success', 'Se adjuntó el archivo correctamente');
+                },
+                error: function(result) {
+                    console.log(result);
+                }
+            });
+
+        } 
+    }
+
+        catch (e) {
+
+            console.log(e.message);
+            console.log("error en subir archivo");
+
+        }
+    }
+    function fnGuardarIncidente() {
+
+        //console.log("hola")
+        var rpta = false;
+        $('.piluku-preloader').removeClass('hidden');
+
+        var a = $('#txtincasunto').val();
+        var b = $('#txtincmsje').val();
+
+        var lon = b.length;
+        if (a == "" || a == 0) {
+            $('.piluku-preloader').addClass('hidden');
+            document.getElementById('lblMensaje0').innerHTML = 'Ingrese el Motivo';
+            document.getElementById('txtincasunto').focus();
+            return false;
+        }
+        if (b == "") {
+            $('.piluku-preloader').addClass('hidden');
+            document.getElementById('lblMensaje0').innerHTML = 'Ingrese el Mensaje';
+            document.getElementById('txtincmsje').focus();
+            return false;
+        }
+        if (lon > 601) {
+            $('.piluku-preloader').addClass('hidden');
+            document.getElementById('lblMensaje0').innerHTML = 'Mensaje Ingresado debe tener 600 caracteres';
+            document.getElementById('txtincmsje').focus();
+            return false;
+        }
+
+        if (fnValidarArchivoIncidente()) {
+
+            $.ajax({
+                type: "GET",
+                contentType: "application/json; charset=utf-8",
+                url: "ProcesoInc.aspx",
+                data: { "param0": "RegInc", "param1": a, "param2": b },
+                dataType: "json",
+                success: function(data) {
+
+                    console.log(data);
+
+                    $('.piluku-preloader').addClass('hidden');
+
+                    if (data[0].r == true) {
+                        document.getElementById('txtincasunto').innerHTML = "";
+                        document.getElementById('txtincmsje').innerHTML = "";
+                        $("#mdForoReg").modal('hide'); //ocultamos el modal            
+
+                        //console.log(data[0].cod);
+                        SubirArchivoInc(data[0].cod);
+                        
+                        fnMensaje("success", "Su solicitud se registró con éxito");
+                        fnIncidentes();
+
+                        document.getElementById('lblMensaje0').innerHTML = "";
+                        document.getElementById('txtincasunto').value = "";
+                        document.getElementById('txtincmsje').value = "";
+                        document.getElementById('flArchivo').value = "";
+                                              
+
+                    } else {
+                        fnMensaje("error", "Usted tiene 03 solicitudes sin ser atendidas, por favor para ingresar una 04 (cuarta) solicitud deberán haberle atendido al menos 01");//jtello Ticket# 82573
+                    }
+                },
+                error: function(result) {
+                    console.log('error');
+                    console.log(result);
+                    $('.piluku-preloader').addClass('hidden');
+                }
+            });
+
+        }
+    }
